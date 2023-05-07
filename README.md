@@ -1,70 +1,69 @@
-# Getting Started with Create React App
+# 코드 스플리팅
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+파일을 분리하는 작업
 
-## Available Scripts
+- 프로젝트에 기본 탑재된 SplitChunks 기능 통한 코드 스플리팅은 단순히 효율적인 캐싱 효과만 있음 => 별도 설정 안하면 컴포넌트 코드 모두 한 파일에 저장 되어 파일 커지고 로딩 오래 걸림 => 코드 비동기 로딩으로 해결
 
-In the project directory, you can run:
+### 웹팩(webpack)
 
-### `yarn start`
+- 빌드 작업 담당하는 도구
+- 별도 설정 하지 않으면 프로젝트에서 사용 중인 모든 자바스크립트 파일이 하나의 파일로 합쳐지고, 모든 CSS 파일도 하나의 파일로 합쳐짐
+- CRA로 프로젝트 빌드할 경우 최소 두개 이상의 자바스크립트 파일 생성되는데, CRA 기본 웹팩 설정에 SplitChunks 기능 적용되어 node_modules에서 불러온 파일, 일정 크기 이상의 파일, 여러 파일 간 공유된 파일을 자동으로 따로 분리시켜 캐싱의 효과 누릴 수 있음
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+#### 빌드
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- 리액트 프로젝트 완성해 사용자에게 제공할 때는 빌드 작업 거쳐 배포해야 함
+- 프로젝트에서 사용되는 자바스크립트 파일 안 불필요한 주석, 경고 메시지, 공백 등 제거해 파일 크기 최소화
+- 브라우저에서 JSX 문법이나 다른 최신 자바스크립트 문법 원활히 실행되도록 코드 트랜스파일 작업
+- 프로젝트 내 이미지와 같은 정적 파일 있다면 해당 파일 위한 경로 설정
 
-### `yarn test`
+## 자바 스크립트 함수 비동기 로딩
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- import를 상단에서 하지 않고 import() 함수 형태로 메서드 안에서 사용하면 파일 따로 분리시켜 저장
+  - import를 함수로 사용하면 Promise 반환
+  - import를 함수로 사용하는 문법은 표준 자바스크립트 아니지만, stage-3 단계에 있는 dynamic import 문법
+  - 웹팩에서 지원하고 있어 별도 설정 없이 프로젝트에 바로 사용 가능
+  - 이 함수 통해 모듈 불러올 때 모듈에서 default로 내보낸 것은 result.default 참조해야 사용 가능
 
-### `yarn build`
+## React.lazy와 Suspense 통한 컴포넌트 코드 스플리팅
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- 코드 스플리팅 위해 리액트에 내장된 기능으로, 유틸함수인 React.lazy와 컴포넌트인 Suspense 있음
+- 리액트 16.6 버전부터 도입됨(이전 버전에서는 import 함수 통해 불러온 후, 컴포넌트 자체를 state에 넣는 방식으로 구현)
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### React.lazy와 Suspense 사용하기
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- React.lazy : 컴포넌트를 렌더링하는 시점에서 비동기적으로 로딩할 수 있게 해 주는 유틸 함수
 
-### `yarn eject`
+  - 사용 예시 코드 :
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+  ```
+  const SplitMe = React.lazy(() => import('./SplitMe'));
+  ```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- Suspense : 리액트 내장 컴포넌트로서 코드 스플리팅 된 컴포넌트를 로딩하도록 발동시킬 수 있고, 로딩 끝나지 않았을 때 보여 줄 UI 설정 가능
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+  - 사용 예시 코드 :
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+  ```
+  import React, { Suspense } from 'react';
 
-## Learn More
+  (...)
+  <Suspense fallback={<div>loading...</div>}>
+    <SplitMe />
+  </Suspense>
+  ```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+  - fallback props 통해 로딩 중 보여 줄 JSX 지정 가능
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Loadable Components 통한 코드 스플리팅
 
-### Code Splitting
+- Loadable Components는 코드 스플러팅을 편하게 하도록 도와주는 서드파티 라이브러리로, 서버 사이드 렌더링 지원
+- 렌더링 전 필요할 때 스플리팅 된 파일 불러올 수 있는 기능
+- 미리 불러오는 기능 외에도 타임아웃, 로딩 UI 딜레이, 서버 사이드 렌더링 호환 등 다양한 기능 제공
+- 공식 문서:https://www.smooth-code.com/open-source/loadable-components/docs/delay/
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### 서버 사이드 렌더링
 
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `yarn build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- 웹 서비스의 초기 로딩 속도 개선, 캐싱 및 검색 엔진 최적화 가능하게 해 주는 기술
+- 서버 사이드 렌더링 사용하면 웹 서비스의 초기 렌더링을 사용자의 브라우저가 아닌 서버 쪽에서 처리
+- 사용자는 서버에서 렌더링한 html 결과물을 받아와 그대로 사용하기 때문에 초기 로딩 속도 개선, 검색 엔진에서 크롤링할 때도 문제 없음
